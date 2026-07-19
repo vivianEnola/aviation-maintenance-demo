@@ -1,0 +1,11 @@
+streamlit==1.59.2
+ultralytics==8.4.101
+torch==2.13.0
+torchvision==0.28.0
+opencv-python==5.0.0.93
+Pillow==12.3.0
+numpy==2.5.1
+PyYAML==6.0.3
+requests==2.34.2
+supabase==2.31.0
+

@@ -1,0 +1,16 @@
+display_names:
+  cumulonimbus: 积雨云
+  stratocumulus: 层积云
+  typhoon_vortex: 疑似白色涡旋状台风云系
+  airport: 机场
+  large_building_cluster: 大型建筑群
+  construction_area: 施工区域
+  runway: 跑道
+  snow: 积雪
+  standing_water: 疑似积水
+
+weather_knowledge:
+  cumulonimbus: "积雨云常与雷暴、强降水、结冰、冰雹和强烈垂直气流相关。"
+  stratocumulus: "层积云通常对应低层稳定或弱不稳定云层，可能伴随轻微降水和低云底。"
+  typhoon_vortex: "白色涡旋状云系可能对应热带气旋结构，可能伴随强风、暴雨和大范围湍流。"
+

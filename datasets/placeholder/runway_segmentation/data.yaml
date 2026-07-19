@@ -1,0 +1,9 @@
+path: datasets/placeholder/runway_segmentation
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: runway
+  1: snow
+  2: standing_water

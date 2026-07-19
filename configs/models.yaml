@@ -1,0 +1,78 @@
+models:
+  general:
+    display_name: "YOLOv8n 通用检测"
+    task: detect
+    weights: yolov8n.pt
+    builtin: true
+    description: "COCO 通用物体检测，用于展示基础识别能力。"
+
+  scene_classifier:
+    display_name: "场景路由分类器"
+    task: classify
+    weights: models/scene_classifier/best.pt
+    pretrained: yolo11n-cls.pt
+    placeholder: true
+    data: datasets/classification
+    classes:
+      0: cloud_scene
+      1: airport_overview
+      2: runway_detail
+      3: other
+
+  cloud_detector:
+    display_name: "云与台风云系检测"
+    task: detect
+    weights: models/cloud_detector/best.pt
+    pretrained: yolo11n.pt
+    placeholder: true
+    data: datasets/cloud_detection/data.yaml
+    classes:
+      0: cumulonimbus
+      1: stratocumulus
+      2: typhoon_vortex
+
+  airport_detector:
+    display_name: "机场周边环境检测"
+    task: detect
+    weights: models/airport_detector/best.pt
+    pretrained: yolo11n.pt
+    placeholder: true
+    data: datasets/airport_detection/data.yaml
+    classes:
+      0: airport
+      1: large_building_cluster
+      2: construction_area
+
+  runway_segmenter:
+    display_name: "跑道状态分割"
+    task: segment
+    weights: models/runway_segmenter/best.pt
+    pretrained: yolo11n-seg.pt
+    placeholder: true
+    data: datasets/runway_segmentation/data.yaml
+    classes:
+      0: runway
+      1: snow
+      2: standing_water
+
+modes:
+  auto:
+    display_name: "Auto 智能路由"
+    classifier: scene_classifier
+    routes:
+      cloud_scene: cloud_detector
+      airport_overview: airport_detector
+      runway_detail: runway_segmenter
+      other: null
+  general:
+    display_name: "YOLOv8n 通用检测"
+    model: general
+  cloud:
+    display_name: "模型2：云与台风云系"
+    model: cloud_detector
+  airport:
+    display_name: "模型3：机场周边环境"
+    model: airport_detector
+  runway:
+    display_name: "模型4：跑道状态分割"
+    model: runway_segmenter

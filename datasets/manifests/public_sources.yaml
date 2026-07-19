@@ -1,0 +1,42 @@
+sources:
+  ourairports:
+    role: airport_coordinates
+    url: https://ourairports.com/data/
+    license: Public Domain
+    notes: "用于抽样公开机场坐标，不作为图像标签真值。"
+
+  planetary_computer_sentinel2:
+    role: clear_rgb_imagery
+    url: https://planetarycomputer.microsoft.com/docs
+    license: Copernicus Sentinel data terms
+    notes: "通过 STAC API 获取清晰 RGB 裁片；需在报告中保留来源与产品 ID。"
+
+  openstreetmap:
+    role: runway_weak_labels
+    url: https://www.openstreetmap.org/copyright
+    license: ODbL 1.0
+    notes: "只作为跑道弱标签，必须人工复核影像配准和跑道宽度。"
+
+  dota_v2:
+    role: airport_detection_bootstrap
+    url: https://docs.ultralytics.com/datasets/obb/dota-v2/
+    license: dataset-specific research terms
+    notes: "DOTA v2 包含 airport 类；下载和转换前需确认原始数据许可。"
+
+  spacenet:
+    role: building_bootstrap
+    url: https://spacenet.ai/datasets/
+    license: dataset-specific
+    notes: "建筑轮廓不包含高度；只用于大型建筑/建筑群初始样本。"
+
+  cumulo:
+    role: cloud_type_cross_validation
+    url: https://github.com/FrontierDevelopmentLab/CUMULO
+    license: GPL-3.0 code; source satellite products retain their own terms
+    notes: "含 MODIS 多光谱图与 CloudSat 稀疏云型轨迹；体量大且不是 RGB YOLO 框，仅作为云型标签交叉验证来源。"
+
+  nasa_modis_deep_convective:
+    role: cumulonimbus_cross_validation
+    url: https://data.nasa.gov/dataset/modis-aqua-l2-deep-convective-cloud-classification-d1f8c
+    license: US Government Works
+    notes: "科学产品而非现成 RGB 检测数据；可用于抽样核验深对流候选。"

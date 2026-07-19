@@ -1,0 +1,23 @@
+input:
+  max_pixels: 40000000
+  allowed_formats: [JPEG, PNG, BMP, TIFF, WEBP]
+
+inference:
+  confidence: 0.25
+  iou: 0.45
+  image_size: 640
+
+auto:
+  min_confidence: 0.60
+  min_margin: 0.15
+  placeholder_min_confidence: 0.20
+  placeholder_min_margin: 0.00
+
+airport:
+  attention_scale: 2.0
+  concern_confidence: 0.55
+
+runway:
+  review_area_ratio: 0.005
+  action_area_ratio: 0.05
+  concern_confidence: 0.50

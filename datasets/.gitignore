@@ -1,0 +1,21 @@
+**/*.jpg
+**/*.jpeg
+**/*.png
+**/*.bmp
+**/*.tif
+**/*.tiff
+**/*.webp
+**/*.zip
+**/*.tar
+**/*.gz
+**/*.cache
+!**/.gitkeep
+!placeholder/**/*.png
+
+# Downloaded candidates and generated prelabels are local working data.
+incoming/**
+!incoming/**/
+!incoming/**/.gitkeep
+prelabels/**
+!prelabels/
+!prelabels/.gitkeep

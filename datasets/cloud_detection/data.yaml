@@ -1,0 +1,9 @@
+path: datasets/cloud_detection
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: cumulonimbus
+  1: stratocumulus
+  2: typhoon_vortex

@@ -1,0 +1,17 @@
+[server]
+headless = true
+maxUploadSize = 20
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#146C94"
+backgroundColor = "#F7FAFC"
+secondaryBackgroundColor = "#EAF2F8"
+textColor = "#183B4E"
+linkColor = "#0B6E99"
+baseRadius = "medium"
+buttonRadius = "medium"
+

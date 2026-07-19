@@ -1,0 +1,8 @@
+watch_folder = "D:/MMSSTV/images"
+device_id = "mmsstv-windows-01"
+bucket = "mmsstv-images"
+table = "image_queue"
+scan_interval_seconds = 5
+stable_wait_seconds = 2
+extensions = [".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"]
+

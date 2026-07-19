@@ -1,0 +1,9 @@
+path: datasets/airport_detection
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: airport
+  1: large_building_cluster
+  2: construction_area

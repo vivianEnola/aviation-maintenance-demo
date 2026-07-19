@@ -1,0 +1,3 @@
+airport
+large_building_cluster
+construction_area

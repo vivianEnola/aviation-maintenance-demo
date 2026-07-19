@@ -1,0 +1,430 @@
+from __future__ import annotations
+
+import json
+from io import BytesIO
+from pathlib import Path
+from typing import Any
+
+from src.aviation_vision.runtime import configure_runtime
+
+configure_runtime()
+
+import streamlit as st
+
+from src.aviation_vision.cloud_inbox import QueueItem, SupabaseInbox
+from src.aviation_vision.config import load_yaml
+from src.aviation_vision.images import ImageValidationError, validate_image_bytes
+from src.aviation_vision.inference import (
+    InferenceOutput,
+    ModelUnavailableError,
+    load_yolo_model,
+    run_inference,
+)
+
+
+st.set_page_config(
+    page_title="卫星图像航空辅助分析",
+    page_icon=":material/satellite_alt:",
+    layout="wide",
+)
+
+
+MODE_LABELS = {
+    "auto": "Auto 智能路由",
+    "general": "YOLOv8n 通用检测",
+    "cloud": "模型2：云与台风云系",
+    "airport": "模型3：机场周边环境",
+    "runway": "模型4：跑道状态分割",
+}
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+DEMO_IMAGES = {
+    "云与涡旋合成样例": PROJECT_ROOT
+    / "datasets/placeholder/cloud_detection/images/test/placeholder_clouds.png",
+    "机场周边合成样例": PROJECT_ROOT
+    / "datasets/placeholder/airport_detection/images/test/placeholder_airport.png",
+    "跑道状态合成样例": PROJECT_ROOT
+    / "datasets/placeholder/runway_segmentation/images/test/placeholder_runway.png",
+    "其它场景合成样例": PROJECT_ROOT
+    / "datasets/placeholder/classification/test/other/placeholder_other.png",
+}
+
+
+def _release_model(model: Any) -> None:
+    try:
+        model.model.cpu()
+    except (AttributeError, RuntimeError):
+        pass
+
+
+@st.cache_resource(
+    max_entries=1,
+    show_spinner=False,
+    on_release=_release_model,
+)
+def _cached_model(model_id: str, source: str) -> Any:
+    return load_yolo_model(model_id, source)
+
+
+@st.cache_resource(max_entries=2, show_spinner=False)
+def _inbox_client(
+    url: str,
+    key: str,
+    bucket: str,
+    table: str,
+) -> SupabaseInbox:
+    return SupabaseInbox(url=url, key=key, bucket=bucket, table=table)
+
+
+def _init_state() -> None:
+    st.session_state.setdefault("output", None)
+    st.session_state.setdefault("source_image", None)
+    st.session_state.setdefault("source_name", None)
+    st.session_state.setdefault("source_sha256", None)
+
+
+def _secret_group(name: str) -> dict[str, Any] | None:
+    try:
+        value = st.secrets.get(name)
+    except (FileNotFoundError, KeyError):
+        return None
+    return dict(value) if value else None
+
+
+def _run_bytes(
+    content: bytes,
+    *,
+    filename: str,
+    mode_id: str,
+    confidence: float,
+    iou: float,
+    image_size: int,
+) -> InferenceOutput:
+    thresholds = load_yaml("thresholds.yaml")
+    input_cfg = thresholds["input"]
+    validated = validate_image_bytes(
+        content,
+        max_pixels=int(input_cfg["max_pixels"]),
+        allowed_formats={str(item).upper() for item in input_cfg["allowed_formats"]},
+    )
+    output = run_inference(
+        mode_id=mode_id,
+        image=validated.image,
+        confidence=confidence,
+        iou=iou,
+        image_size=image_size,
+        thresholds=thresholds,
+        rules=load_yaml("advisory_rules.yaml"),
+        model_loader=_cached_model,
+    )
+    output.report.metadata.update(
+        {
+            "filename": filename,
+            "sha256": validated.sha256,
+            "image_format": validated.format,
+            "width": validated.width,
+            "height": validated.height,
+        }
+    )
+    st.session_state.output = output
+    st.session_state.source_image = validated.image
+    st.session_state.source_name = filename
+    st.session_state.source_sha256 = validated.sha256
+    return output
+
+
+def _image_png_bytes(image: Any) -> bytes:
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _render_classification(output: InferenceOutput) -> None:
+    classification = output.report.classification
+    if classification is None:
+        return
+    st.subheader("Auto 分类结果")
+    metrics = st.columns(3)
+    metrics[0].metric("Top-1 类别", classification.label)
+    metrics[1].metric("Top-1 置信度", f"{classification.confidence:.1%}")
+    margin = classification.margin
+    metrics[2].metric("类别差值", "—" if margin is None else f"{margin:.1%}")
+    if classification.second_label is not None:
+        st.caption(
+            f"Top-2：{classification.second_label}，"
+            f"置信度 {(classification.second_confidence or 0):.1%}"
+        )
+
+
+def _render_report(output: InferenceOutput) -> None:
+    report = output.report
+    source_image = st.session_state.source_image
+    st.subheader("识别结果")
+    metrics = st.columns(4)
+    metrics[0].metric("执行模型", report.executed_model or "未路由")
+    metrics[1].metric("任务", report.task or "—")
+    metrics[2].metric("目标数量", len(report.objects))
+    metrics[3].metric("总耗时", f"{report.processing_ms:.0f} ms")
+
+    _render_classification(output)
+
+    image_columns = st.columns(2)
+    with image_columns[0].container(border=True, height="stretch"):
+        st.subheader("原始图像")
+        st.image(source_image, width="stretch")
+    with image_columns[1].container(border=True, height="stretch"):
+        st.subheader("分析图像")
+        st.image(output.annotated_image, width="stretch")
+
+    with st.container(border=True):
+        st.subheader("综合分析")
+        st.write(report.summary or "暂无分析结论。")
+        if report.knowledge:
+            st.markdown("**相关知识**")
+            for item in report.knowledge:
+                st.markdown(f"- {item}")
+        if report.recommendations:
+            st.markdown("**建议**")
+            for item in report.recommendations:
+                st.markdown(f"- {item}")
+        for warning in report.warnings:
+            st.warning(warning, icon=":material/warning:")
+
+    if report.objects:
+        rows = [
+            {
+                "类别": item.label,
+                "置信度": item.confidence,
+                "掩膜占图比例": item.mask_area_ratio,
+                "边界框": None if item.xyxy is None else [round(v, 1) for v in item.xyxy],
+            }
+            for item in report.objects
+        ]
+        st.dataframe(
+            rows,
+            column_config={
+                "置信度": st.column_config.ProgressColumn(
+                    "置信度", min_value=0.0, max_value=1.0, format="percent"
+                ),
+                "掩膜占图比例": st.column_config.NumberColumn(format="percent"),
+            },
+            hide_index=True,
+        )
+
+    report_json = json.dumps(report.to_dict(), ensure_ascii=False, indent=2)
+    with st.container(horizontal=True):
+        st.download_button(
+            "下载 JSON 结果",
+            data=report_json,
+            file_name=f"{st.session_state.source_name or 'result'}.json",
+            mime="application/json",
+            icon=":material/download:",
+        )
+        st.download_button(
+            "下载标注图",
+            data=_image_png_bytes(output.annotated_image),
+            file_name=f"{st.session_state.source_name or 'result'}_annotated.png",
+            mime="image/png",
+            icon=":material/image:",
+        )
+
+
+def _process_queue_item(
+    client: SupabaseInbox,
+    item: QueueItem,
+    *,
+    mode_id: str,
+    confidence: float,
+    iou: float,
+    image_size: int,
+) -> None:
+    try:
+        content = client.download(item)
+        output = _run_bytes(
+            content,
+            filename=item.original_name,
+            mode_id=mode_id,
+            confidence=confidence,
+            iou=iou,
+            image_size=image_size,
+        )
+        client.mark_processed(item.id, result=output.report.to_dict())
+    except Exception as exc:
+        client.mark_failed(item.id, str(exc))
+        raise
+
+
+_init_state()
+thresholds = load_yaml("thresholds.yaml")
+defaults = thresholds["inference"]
+
+st.title("卫星图像航空辅助分析")
+st.caption("YOLO 多模型路由、云与机场环境检测、跑道状态分割")
+st.warning(
+    "本系统用于课程项目展示，结果不能替代正式气象、机场检查、适航或放行结论。",
+    icon=":material/info:",
+)
+st.info(
+    "当前业务模型为最小合成数据训练的功能占位版；可验证上传、路由、检测/分割与报告流程，"
+    "不能据此评价识别准确率。",
+    icon=":material/science:",
+)
+
+with st.sidebar:
+    st.header("推理设置")
+    mode_id = st.selectbox(
+        "模型模式",
+        options=list(MODE_LABELS),
+        format_func=MODE_LABELS.get,
+        key="mode_id",
+    )
+    confidence = st.slider(
+        "置信度阈值",
+        min_value=0.01,
+        max_value=0.95,
+        value=(
+            0.01
+            if mode_id in {"auto", "cloud", "airport", "runway"}
+            else float(defaults["confidence"])
+        ),
+        step=0.01,
+        key=f"confidence_{mode_id}",
+    )
+    iou = st.slider(
+        "IoU 阈值",
+        min_value=0.10,
+        max_value=0.90,
+        value=float(defaults["iou"]),
+        step=0.05,
+    )
+    image_size = st.select_slider(
+        "模型输入尺寸",
+        options=[320, 480, 640, 768, 1024],
+        value=int(defaults["image_size"]),
+    )
+    st.caption("Community Cloud 默认一次处理一张图片，并只缓存一个模型。")
+
+source_mode = st.segmented_control(
+    "图片来源",
+    options=["manual", "demo", "cloud"],
+    default="manual",
+    required=True,
+    format_func={
+        "manual": "手动上传",
+        "demo": "内置样例",
+        "cloud": "云端收件箱",
+    }.get,
+    key="source_mode",
+)
+
+if source_mode == "manual":
+    with st.form("manual_inference"):
+        uploaded = st.file_uploader(
+            "上传图片",
+            type=["jpg", "jpeg", "png", "bmp", "tif", "tiff", "webp"],
+            help="最大 20 MB；应用会校验真实图片格式和像素数量。",
+        )
+        submitted = st.form_submit_button(
+            "开始分析", type="primary", icon=":material/play_arrow:"
+        )
+    if submitted:
+        if uploaded is None:
+            st.error("请先上传图片。", icon=":material/error:")
+        else:
+            try:
+                with st.status("正在执行模型推理…", expanded=True) as status:
+                    status.write("校验图片")
+                    _run_bytes(
+                        uploaded.getvalue(),
+                        filename=uploaded.name,
+                        mode_id=mode_id,
+                        confidence=confidence,
+                        iou=iou,
+                        image_size=image_size,
+                    )
+                    status.update(label="分析完成", state="complete", expanded=False)
+            except (ImageValidationError, ModelUnavailableError) as exc:
+                st.error(str(exc), icon=":material/error:")
+            except Exception as exc:
+                st.exception(exc)
+elif source_mode == "demo":
+    with st.container(border=True):
+        st.subheader("内置演示样例")
+        demo_name = st.selectbox("选择样例", options=list(DEMO_IMAGES), key="demo_name")
+        demo_path = DEMO_IMAGES[demo_name]
+        st.image(str(demo_path), width=360)
+        if st.button(
+            "分析样例",
+            type="primary",
+            icon=":material/play_arrow:",
+            key="analyze_demo",
+        ):
+            try:
+                with st.status("正在执行模型推理…", expanded=True) as status:
+                    status.write("载入内置样例")
+                    _run_bytes(
+                        demo_path.read_bytes(),
+                        filename=demo_path.name,
+                        mode_id=mode_id,
+                        confidence=confidence,
+                        iou=iou,
+                        image_size=image_size,
+                    )
+                    status.update(label="分析完成", state="complete", expanded=False)
+            except (ImageValidationError, ModelUnavailableError) as exc:
+                st.error(str(exc), icon=":material/error:")
+            except Exception as exc:
+                st.exception(exc)
+else:
+    supabase_config = _secret_group("supabase")
+    if not supabase_config:
+        st.info(
+            "云端收件箱尚未配置。请按 `.streamlit/secrets.example.toml` 设置 Supabase。",
+            icon=":material/cloud_off:",
+        )
+    else:
+        inbox = _inbox_client(
+            str(supabase_config["url"]),
+            str(supabase_config["key"]),
+            str(supabase_config.get("bucket", "mmsstv-images")),
+            str(supabase_config.get("table", "image_queue")),
+        )
+        device_id = st.text_input("设备 ID（留空表示全部）", key="inbox_device")
+
+        @st.fragment(run_every="10s")
+        def queue_panel() -> None:
+            try:
+                items = inbox.pending(device_id=device_id or None)
+            except Exception as exc:
+                st.error(f"读取云端收件箱失败：{exc}")
+                return
+            if not items:
+                st.info("当前没有待处理图片。", icon=":material/inbox:")
+                return
+            selected_id = st.selectbox(
+                "待处理图片",
+                options=[item.id for item in items],
+                format_func=lambda item_id: next(
+                    item.original_name for item in items if item.id == item_id
+                ),
+                key="queue_item_id",
+            )
+            if st.button("分析所选图片", type="primary", icon=":material/play_arrow:"):
+                selected = next(item for item in items if item.id == selected_id)
+                try:
+                    _process_queue_item(
+                        inbox,
+                        selected,
+                        mode_id=mode_id,
+                        confidence=confidence,
+                        iou=iou,
+                        image_size=image_size,
+                    )
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"队列图片处理失败：{exc}")
+
+        queue_panel()
+
+if st.session_state.output is not None:
+    _render_report(st.session_state.output)
