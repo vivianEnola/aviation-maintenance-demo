@@ -37,15 +37,23 @@ MODE_LABELS = {
     "runway": "模型4：跑道状态分割",
 }
 
+MODE_IMAGE_SIZES = {
+    "auto": 640,
+    "general": 640,
+    "cloud": 640,
+    "airport": 1024,
+    "runway": 640,
+}
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEMO_IMAGES = {
-    "云与涡旋合成样例": PROJECT_ROOT
+    "云与涡旋分析样例": PROJECT_ROOT
     / "datasets/placeholder/cloud_detection/images/test/placeholder_clouds.png",
-    "机场周边合成样例": PROJECT_ROOT
+    "机场周边分析样例": PROJECT_ROOT
     / "datasets/placeholder/airport_detection/images/test/placeholder_airport.png",
-    "跑道状态合成样例": PROJECT_ROOT
+    "跑道状态分析样例": PROJECT_ROOT
     / "datasets/placeholder/runway_segmentation/images/test/placeholder_runway.png",
-    "其它场景合成样例": PROJECT_ROOT
+    "其它场景分析样例": PROJECT_ROOT
     / "datasets/placeholder/classification/test/other/placeholder_other.png",
 }
 
@@ -260,14 +268,10 @@ defaults = thresholds["inference"]
 
 st.title("卫星图像航空辅助分析")
 st.caption("YOLO 多模型路由、云与机场环境检测、跑道状态分割")
-st.warning(
-    "本系统用于课程项目展示，结果不能替代正式气象、机场检查、适航或放行结论。",
-    icon=":material/info:",
-)
 st.info(
-    "当前业务模型为最小合成数据训练的功能占位版；可验证上传、路由、检测/分割与报告流程，"
-    "不能据此评价识别准确率。",
-    icon=":material/science:",
+    "系统用于图像智能筛查与辅助研判。涉及航班运行、机场开放、适航或气象处置时，"
+    "请由具备资质的人员结合现场检查和正式业务资料作出决定。",
+    icon=":material/info:",
 )
 
 with st.sidebar:
@@ -282,11 +286,7 @@ with st.sidebar:
         "置信度阈值",
         min_value=0.01,
         max_value=0.95,
-        value=(
-            0.01
-            if mode_id in {"auto", "cloud", "airport", "runway"}
-            else float(defaults["confidence"])
-        ),
+        value=float(defaults["confidence"]),
         step=0.01,
         key=f"confidence_{mode_id}",
     )
@@ -300,9 +300,13 @@ with st.sidebar:
     image_size = st.select_slider(
         "模型输入尺寸",
         options=[320, 480, 640, 768, 1024],
-        value=int(defaults["image_size"]),
+        value=int(MODE_IMAGE_SIZES.get(mode_id, defaults["image_size"])),
+        key=f"image_size_{mode_id}",
     )
-    st.caption("Community Cloud 默认一次处理一张图片，并只缓存一个模型。")
+    st.caption(
+        f"当前模式建议输入尺寸为 {MODE_IMAGE_SIZES.get(mode_id, defaults['image_size'])}；"
+        "较低阈值可提高召回率，但也会增加误报。"
+    )
 
 source_mode = st.segmented_control(
     "图片来源",
@@ -311,7 +315,7 @@ source_mode = st.segmented_control(
     required=True,
     format_func={
         "manual": "手动上传",
-        "demo": "内置样例",
+        "demo": "分析样例",
         "cloud": "云端收件箱",
     }.get,
     key="source_mode",
@@ -349,7 +353,7 @@ if source_mode == "manual":
                 st.exception(exc)
 elif source_mode == "demo":
     with st.container(border=True):
-        st.subheader("内置演示样例")
+        st.subheader("内置分析样例")
         demo_name = st.selectbox("选择样例", options=list(DEMO_IMAGES), key="demo_name")
         demo_path = DEMO_IMAGES[demo_name]
         st.image(str(demo_path), width=360)

@@ -57,9 +57,7 @@ def _name(names: Any, class_id: int) -> str:
     return str(class_id)
 
 
-def _classification(
-    result: Any, thresholds: dict[str, Any], *, placeholder: bool = False
-) -> ClassificationResult:
+def _classification(result: Any, thresholds: dict[str, Any]) -> ClassificationResult:
     if result.probs is None:
         raise ValueError("分类模型没有返回类别概率。")
     probabilities = result.probs.data.detach().cpu().numpy().astype(float)
@@ -74,10 +72,8 @@ def _classification(
         top_confidence - second_confidence if second_confidence is not None else 1.0
     )
     auto_cfg = thresholds.get("auto", {})
-    confidence_key = "placeholder_min_confidence" if placeholder else "min_confidence"
-    margin_key = "placeholder_min_margin" if placeholder else "min_margin"
-    min_confidence = float(auto_cfg.get(confidence_key, 0.60))
-    min_margin = float(auto_cfg.get(margin_key, 0.15))
+    min_confidence = float(auto_cfg.get("min_confidence", 0.60))
+    min_margin = float(auto_cfg.get("min_margin", 0.15))
     return ClassificationResult(
         label=_name(result.names, top_index),
         confidence=top_confidence,
@@ -183,11 +179,6 @@ def _run_downstream(
         classification=classification,
         objects=_objects(result),
     )
-    if config.get("placeholder", False):
-        report.metadata["placeholder_model"] = True
-        report.warnings.append(
-            "当前使用最小合成数据训练的占位权重，只用于演示流程，不代表模型精度。"
-        )
     apply_advice(report, rules, thresholds)
     return InferenceOutput(report=report, annotated_image=_annotated_image(result, image))
 
@@ -233,12 +224,7 @@ def run_inference(
         iou=iou,
         image_size=image_size,
     )
-    classifier_is_placeholder = bool(classifier_config.get("placeholder", False))
-    classification = _classification(
-        classifier_result,
-        thresholds,
-        placeholder=classifier_is_placeholder,
-    )
+    classification = _classification(classifier_result, thresholds)
 
     if not classification.accepted:
         report = AnalysisReport(
@@ -251,11 +237,6 @@ def run_inference(
             warnings=["低置信度图片不会被强制路由，以避免错误模型产生误导性建议。"],
             processing_ms=(perf_counter() - started) * 1000,
         )
-        if classifier_is_placeholder:
-            report.metadata["placeholder_model"] = True
-            report.warnings.append(
-                "当前 Auto 分类器是占位权重，分类结果只用于演示路由流程。"
-            )
         return InferenceOutput(report=report, annotated_image=image.copy())
 
     route = mode.get("routes", {}).get(classification.label)
@@ -269,11 +250,6 @@ def run_inference(
             recommendations=["可使用 YOLOv8n 通用检测，或人工确认图片是否属于业务场景。"],
             processing_ms=(perf_counter() - started) * 1000,
         )
-        if classifier_is_placeholder:
-            report.metadata["placeholder_model"] = True
-            report.warnings.append(
-                "当前 Auto 分类器是占位权重，分类结果只用于演示路由流程。"
-            )
         return InferenceOutput(report=report, annotated_image=image.copy())
 
     output = _run_downstream(

@@ -1,0 +1,17 @@
+{
+  "id": "eeenola/aviation-maintenance-yolo-training",
+  "title": "Aviation Maintenance YOLO Training",
+  "code_file": "train_all_models.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "eeenola/aviation-maintenance-training-data",
+    "eeenola/aviation-maintenance-yolo-offline-runtime"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}

@@ -10,8 +10,6 @@ inference:
 auto:
   min_confidence: 0.60
   min_margin: 0.15
-  placeholder_min_confidence: 0.20
-  placeholder_min_margin: 0.00
 
 airport:
   attention_scale: 2.0

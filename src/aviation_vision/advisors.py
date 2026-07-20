@@ -15,6 +15,14 @@ def _max_confidence(objects: list[VisionObject], label: str) -> float:
     return max(values, default=0.0)
 
 
+def _confidence_level(value: float) -> str:
+    if value >= 0.75:
+        return "高"
+    if value >= 0.50:
+        return "中"
+    return "低"
+
+
 def _format_detected(objects: list[VisionObject], rules: dict[str, Any]) -> str:
     counts = Counter(item.label for item in objects)
     if not counts:
@@ -53,7 +61,16 @@ def _expanded_box(
 def analyze_general(report: AnalysisReport, rules: dict[str, Any]) -> None:
     report.summary = _format_detected(report.objects, rules)
     if report.objects:
-        report.recommendations.append("通用检测结果仅描述 COCO 物体类别，不代表航空专业风险判断。")
+        report.recommendations.extend(
+            [
+                "建议结合目标位置、数量和最高置信度复核原图；低置信度或小尺寸目标优先人工确认。",
+                "通用检测使用 COCO 类别体系，不直接代表航空运行风险或设施合规结论。",
+            ]
+        )
+    else:
+        report.recommendations.append(
+            "未检出通用类别不等于画面中没有目标；可适当降低阈值或提高输入尺寸后复核。"
+        )
 
 
 def analyze_cloud(report: AnalysisReport, rules: dict[str, Any]) -> None:
@@ -61,10 +78,18 @@ def analyze_cloud(report: AnalysisReport, rules: dict[str, Any]) -> None:
     report.summary = _format_detected(report.objects, rules)
 
     if not labels:
-        report.recommendations.append(
-            "当前图片未检出指定云型；仍应结合官方气象资料确认航路天气。"
+        report.summary += " 这不等同于无云或无危险天气，可能存在未纳入模型的云型、薄云或尺度较小的目标。"
+        report.recommendations.extend(
+            [
+                "核对影像拍摄时间、覆盖区域和清晰度，并结合 METAR、TAF、SIGMET、气象雷达及官方卫星产品确认航路天气。",
+                "若图片存在压缩失真、黑边或云体被截断，建议重新获取清晰图像后复核。",
+            ]
         )
         return
+
+    detected_confidences = [item.confidence for item in report.objects if item.label in labels]
+    peak = max(detected_confidences, default=0.0)
+    report.summary += f" 综合判定可信度为{_confidence_level(peak)}（最高 {peak:.1%}）；多类并存时按风险较高的天气系统优先处置。"
 
     knowledge = rules.get("weather_knowledge", {})
     for label in ("cumulonimbus", "stratocumulus", "typhoon_vortex"):
@@ -74,20 +99,23 @@ def analyze_cloud(report: AnalysisReport, rules: dict[str, Any]) -> None:
     if "typhoon_vortex" in labels:
         report.recommendations.extend(
             [
-                "发现疑似涡旋状天气系统，应立即结合气象雷达、卫星云图、SIGMET 和管制信息复核。",
-                "避免根据本系统单独规划穿越该云系的航路。",
+                "发现疑似白色涡旋状台风云系：立即查验热带气旋通报、最佳路径资料、SIGMET、雷达回波与管制信息，确认中心位置、移动方向和影响半径。",
+                "航路与备降方案应避开强对流核心区及其外围雨带；不要依据单幅 RGB 图像估算台风等级、风速或安全间隔。",
+                "评估目的地和备降场侧风、暴雨、低能见度、风切变以及地面保障中断风险，并准备延误、返航或改航方案。",
             ]
         )
     if "cumulonimbus" in labels:
         report.recommendations.append(
-            "积雨云可能伴随雷暴、结冰和强烈气流，建议结合正式气象资料规划绕飞。"
+            "积雨云可能伴随雷暴、冰雹、积冰、强降水、风切变和强烈垂直气流；禁止仅凭图像尝试穿越，按运行手册和管制要求规划绕飞并持续监控回波演变。"
         )
     if "stratocumulus" in labels:
         report.recommendations.append(
-            "层积云通常风险低于强对流云，但应关注低云底、能见度和轻微降水。"
+            "层积云通常低于强对流风险，但仍需核查云底高、能见度、轻微降水及零度层；在低温含水云中同时评估机体积冰可能性。"
         )
 
-    report.warnings.append("云型结论来自普通 RGB 图像，只能作为课程展示中的视觉辅助判断。")
+    report.warnings.append(
+        "普通 RGB 图像不能直接测量云顶高度、降水强度、风场、温度或积冰条件；结论仅用于视觉筛查，必须由正式航空气象资料复核。"
+    )
 
 
 def analyze_airport(
@@ -104,7 +132,12 @@ def analyze_airport(
     ]
 
     if not airports:
-        report.recommendations.append("未可靠定位机场主体，无法评估周边目标与机场的相对位置。")
+        report.recommendations.extend(
+            [
+                "未可靠定位机场主体，无法评估周边目标与机场的相对位置。请核对影像覆盖范围、方向与分辨率。",
+                "如需开展净空筛查，应补充机场基准点、跑道端坐标、障碍物限制面和最新地形/建筑高度数据。",
+            ]
+        )
         return
 
     airport_cfg = thresholds.get("airport", {})
@@ -120,16 +153,24 @@ def analyze_airport(
 
     if nearby:
         labels = sorted({_display(item.label, rules) for item in nearby})
+        nearby_peak = max(item.confidence for item in nearby)
         report.recommendations.extend(
             [
-                f"机场周边关注区域内发现高置信度目标：{'、'.join(labels)}。",
-                "建议人工核对机场净空保护要求、施工许可和最新现场资料。",
+                f"机场周边关注区域内发现需复核目标：{'、'.join(labels)}，最高置信度 {nearby_peak:.1%}。该结果属于异常线索，不直接构成违建判定。",
+                "建议人工核对目标位置：将其叠加到机场障碍物限制面、净空保护区和土地规划图，核验建筑或施工许可、批准高度、起重设备及施工时段。",
+                "安排现场巡查或使用带有坐标和高程信息的测绘/遥感资料复核；重点检查临时吊机、灯光遮蔽、鸟类吸引源和施工扬尘等运行影响。",
+                "若复核发现可能侵入净空面或影响导航、目视助航设施，按机场安全管理程序升级评估，并视情况发布航行通告或采取运行限制。",
             ]
         )
-        report.warnings.append("系统不能从单幅 RGB 图像判断建筑高度、审批状态或是否违建。")
+        report.warnings.append(
+            "单幅普通 RGB 图像不能测得建筑高度，也无法读取审批状态，因此系统不能认定是否违建。"
+        )
     else:
-        report.recommendations.append(
-            "当前阈值下未发现进入机场周边关注区域的高置信度建筑群或施工区域。"
+        report.recommendations.extend(
+            [
+                "当前阈值下未发现进入机场周边关注区域的高置信度建筑群或施工区域；该结果不排除小型、被遮挡或尚未纳入训练分布的目标。",
+                "维持周期性影像对比和地面巡视，并将新建、扩建及临时施工信息与规划许可台账交叉核验。",
+            ]
         )
 
 
@@ -165,12 +206,20 @@ def analyze_runway(
     )
 
     if runway_area <= 0:
-        report.recommendations.append("未可靠分割出跑道，无法判断道面是否需要清理。")
+        report.recommendations.extend(
+            [
+                "未可靠分割出跑道，无法判断道面是否需要清理；请确认画面包含完整跑道并提高图像清晰度。",
+                "在获得可靠分割前，不应依据本次结果降低巡检频次或恢复跑道使用。",
+            ]
+        )
         return
 
     if contamination_area <= 0:
-        report.recommendations.append(
-            "当前阈值下未分割出积雪或疑似积水；仍需按机场规程进行现场巡检。"
+        report.recommendations.extend(
+            [
+                "当前阈值下未分割出积雪或疑似积水；仍需按机场运行规程完成道面巡检，确认排水、标志标线和灯光状态。",
+                "降雪、融雪或强降雨期间应提高检查频次，并结合跑道状况报告、制动效应和气象变化持续评估。",
+            ]
         )
         return
 
@@ -183,19 +232,26 @@ def analyze_runway(
     if ratio >= action_ratio and max_condition_conf >= concern_conf:
         report.recommendations.extend(
             [
-                f"疑似污染区域约占跑道掩膜的 {ratio:.1%}，建议优先安排现场检查和清理。",
-                "清理后应按机场运行规程复核道面状况，不可仅凭本系统恢复使用。",
+                f"疑似污染区域约占跑道掩膜的 {ratio:.1%}，最高条件置信度 {max_condition_conf:.1%}，建议将该跑道列为优先现场检查与处置对象。",
+                "根据污染类型组织清理，包括除雪、扫雪、除冰或排水作业；作业前后记录污染物种类、覆盖范围和深度，并检查排水口、道肩及低洼区。",
+                "处置后按机场程序重新检查并发布跑道状况报告；必要时评估制动效应、更新航行通告，在授权人员确认前不得仅凭图像结果恢复正常使用。",
             ]
         )
     elif ratio >= review_ratio or max_condition_conf >= concern_conf:
         report.recommendations.append(
-            f"检测到需要复核的道面区域（相对面积约 {ratio:.1%}），建议进行现场巡检。"
+            f"检测到需要复核的道面区域（相对面积约 {ratio:.1%}，最高条件置信度 {max_condition_conf:.1%}）。建议定点巡检，核实污染物种类、深度、连续性及对轮迹区的影响。"
         )
     else:
         report.recommendations.append(
-            "检测区域较小或置信度较低，建议人工核对后再决定是否清理。"
+            "检测区域较小或置信度较低，先对标注区域进行人工复核；结合近期降水/降雪、排水状态和道面反光情况决定是否清理。"
         )
-    report.warnings.append("普通 RGB 图像中的阴影和深色铺装可能与积水混淆。")
+    if snow_area > 0:
+        report.knowledge.append("积雪会遮挡标志标线并降低轮胎—道面摩擦，融雪后还可能形成再冻结或局部积水。")
+    if water_area > 0:
+        report.knowledge.append("积水可能增加滑水风险；风险与水深、速度、轮胎状态和道面纹理等因素共同相关。")
+    report.warnings.append(
+        "RGB 图像不能测量积雪/积水深度、摩擦系数或制动效应；阴影、反光和深色铺装可能造成混淆。"
+    )
 
 
 def apply_advice(

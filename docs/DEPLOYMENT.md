@@ -2,7 +2,7 @@
 
 ## 最小部署
 
-1. 将整个项目推送到 GitHub 仓库，保留 `models/**/best.pt`、`yolov8n.pt`、`datasets/placeholder/`、`requirements.txt` 和 `.streamlit/config.toml`。
+1. 将整个项目推送到 GitHub 仓库，保留 `models/**/best.pt`、`yolov8n.pt`、内置分析样例、`requirements.txt` 和 `.streamlit/config.toml`。
 2. 登录 Streamlit Community Cloud，选择该仓库与 `main` 分支。
 3. Main file path 填写 `streamlit_app.py`，Python 版本选择 3.12。
 4. 不配置 Secrets 也可使用“手动上传”和“内置样例”。
@@ -24,6 +24,6 @@ table = "image_queue"
 
 不要把真实密钥写入仓库。完成后，按 `local_uploader/README.md` 在接收 MMSSTV 图片的 Windows 电脑上启动文件夹监听器。
 
-## 更新真实模型
+## 更新模型
 
-完成真实数据标注和训练后，只需替换四个 `models/.../best.pt` 权重并重新推送。若权重超过 GitHub 单文件限制，应改用 Git LFS 或私有对象存储，并在应用启动时下载。
+重新训练后，只需替换四个 `models/.../best.pt` 权重、更新 `models/training_metrics.json` 并重新推送。若权重超过 GitHub 单文件限制，应改用 Git LFS 或受控对象存储，并在应用启动时下载。

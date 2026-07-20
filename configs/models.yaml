@@ -11,20 +11,18 @@ models:
     task: classify
     weights: models/scene_classifier/best.pt
     pretrained: yolo11n-cls.pt
-    placeholder: true
     data: datasets/classification
     classes:
-      0: cloud_scene
-      1: airport_overview
-      2: runway_detail
-      3: other
+      0: airport_overview
+      1: cloud_scene
+      2: other
+      3: runway_detail
 
   cloud_detector:
     display_name: "云与台风云系检测"
     task: detect
     weights: models/cloud_detector/best.pt
     pretrained: yolo11n.pt
-    placeholder: true
     data: datasets/cloud_detection/data.yaml
     classes:
       0: cumulonimbus
@@ -36,7 +34,6 @@ models:
     task: detect
     weights: models/airport_detector/best.pt
     pretrained: yolo11n.pt
-    placeholder: true
     data: datasets/airport_detection/data.yaml
     classes:
       0: airport
@@ -48,7 +45,6 @@ models:
     task: segment
     weights: models/runway_segmenter/best.pt
     pretrained: yolo11n-seg.pt
-    placeholder: true
     data: datasets/runway_segmentation/data.yaml
     classes:
       0: runway
