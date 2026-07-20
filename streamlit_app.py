@@ -47,14 +47,10 @@ MODE_IMAGE_SIZES = {
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEMO_IMAGES = {
-    "云与涡旋分析样例": PROJECT_ROOT
-    / "datasets/placeholder/cloud_detection/images/test/placeholder_clouds.png",
-    "机场周边分析样例": PROJECT_ROOT
-    / "datasets/placeholder/airport_detection/images/test/placeholder_airport.png",
-    "跑道状态分析样例": PROJECT_ROOT
-    / "datasets/placeholder/runway_segmentation/images/test/placeholder_runway.png",
-    "其它场景分析样例": PROJECT_ROOT
-    / "datasets/placeholder/classification/test/other/placeholder_other.png",
+    "云与涡旋分析样例": PROJECT_ROOT / "assets/samples/clouds.png",
+    "机场周边分析样例": PROJECT_ROOT / "assets/samples/airport.png",
+    "跑道状态分析样例": PROJECT_ROOT / "assets/samples/runway.png",
+    "其它场景分析样例": PROJECT_ROOT / "assets/samples/other.png",
 }
 
 
@@ -187,13 +183,10 @@ def _render_report(output: InferenceOutput) -> None:
     with st.container(border=True):
         st.subheader("综合分析")
         st.write(report.summary or "暂无分析结论。")
-        if report.knowledge:
-            st.markdown("**相关知识**")
-            for item in report.knowledge:
-                st.markdown(f"- {item}")
-        if report.recommendations:
-            st.markdown("**建议**")
-            for item in report.recommendations:
+        guidance = [*report.knowledge, *report.recommendations]
+        if guidance:
+            st.markdown("**影响与处置建议**")
+            for item in guidance:
                 st.markdown(f"- {item}")
         for warning in report.warnings:
             st.warning(warning, icon=":material/warning:")

@@ -31,13 +31,22 @@ class UploaderConfig:
     extensions: set[str]
 
 
-def load_config(path: Path) -> UploaderConfig:
+def load_config(
+    path: Path,
+    *,
+    watch_folder_override: Path | None = None,
+    device_id_override: str | None = None,
+) -> UploaderConfig:
     with path.open("rb") as handle:
         raw = tomllib.load(handle)
-    watch_folder = Path(str(raw["watch_folder"])).expanduser().resolve()
+    watch_folder = (
+        watch_folder_override
+        if watch_folder_override is not None
+        else Path(str(raw["watch_folder"]))
+    ).expanduser().resolve()
     if not watch_folder.is_dir():
         raise FileNotFoundError(f"监听文件夹不存在：{watch_folder}")
-    device_id = str(raw["device_id"]).strip()
+    device_id = str(device_id_override or raw["device_id"]).strip()
     if not device_id:
         raise ValueError("device_id 不能为空。")
     return UploaderConfig(
@@ -186,6 +195,8 @@ def run(config: UploaderConfig, *, once: bool = False, dry_run: bool = False) ->
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="监听 MMSSTV 图片目录并上传到 Supabase。")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--watch-folder", type=Path, help="覆盖配置文件中的监听目录。")
+    parser.add_argument("--device-id", help="覆盖配置文件中的设备 ID。")
     parser.add_argument("--once", action="store_true", help="扫描一次后退出。")
     parser.add_argument("--dry-run", action="store_true", help="不连接云端，仅显示将上传的文件。")
     return parser.parse_args()
@@ -193,9 +204,16 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    run(load_config(args.config.resolve()), once=args.once, dry_run=args.dry_run)
+    run(
+        load_config(
+            args.config.resolve(),
+            watch_folder_override=args.watch_folder,
+            device_id_override=args.device_id,
+        ),
+        once=args.once,
+        dry_run=args.dry_run,
+    )
 
 
 if __name__ == "__main__":
     main()
-

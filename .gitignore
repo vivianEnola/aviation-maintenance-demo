@@ -1,5 +1,7 @@
 .venv/
 .runtime/
+.model_backups/
+dist/
 .agents/
 Ultralytics/
 __pycache__/

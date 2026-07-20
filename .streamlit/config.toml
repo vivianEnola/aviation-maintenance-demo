@@ -8,10 +8,23 @@ gatherUsageStats = false
 [theme]
 base = "light"
 primaryColor = "#146C94"
-backgroundColor = "#F7FAFC"
-secondaryBackgroundColor = "#EAF2F8"
-textColor = "#183B4E"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#EEF5F8"
+textColor = "#17313F"
 linkColor = "#0B6E99"
+borderColor = "#CCDDE5"
 baseRadius = "medium"
 buttonRadius = "medium"
+baseFontSize = 15
+baseFontWeight = 400
+headingFontSizes = ["30px", "24px", "20px", "17px", "15px", "14px"]
+headingFontWeights = [650, 620, 600, 580, 560, 540]
+showWidgetBorder = true
+showSidebarBorder = true
 
+[theme.sidebar]
+backgroundColor = "#F3F7F9"
+secondaryBackgroundColor = "#E5EFF3"
+textColor = "#17313F"
+borderColor = "#CCDDE5"
+primaryColor = "#146C94"

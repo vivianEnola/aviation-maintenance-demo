@@ -69,6 +69,8 @@ Supabase 是可选功能，不影响内置样例和手动上传：
 
 Community Cloud 的入口文件为 `streamlit_app.py`，建议 Python 3.12。详细步骤见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。云端只负责推理，不用于训练；应用一次处理一张图片，并只缓存一个业务模型以控制内存。
 
+本地文件夹自动同步、Windows 一键运行、精简分发包和重新训练后的权重更新流程见 [docs/OPERATIONS.md](docs/OPERATIONS.md)。
+
 ## 许可提醒
 
 Ultralytics PyPI 包采用 AGPL-3.0-or-later。公开部署前应保留依赖来源与相应许可说明。数据集还必须逐项记录许可和来源，项目已在 `datasets/manifests/` 中预留清单。

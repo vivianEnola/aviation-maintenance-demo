@@ -29,28 +29,23 @@ def main() -> None:
     cases = [
         (
             "general",
-            PROJECT_ROOT
-            / "datasets/placeholder/airport_detection/images/test/placeholder_airport.png",
+            PROJECT_ROOT / "assets/samples/airport.png",
         ),
         (
             "cloud",
-            PROJECT_ROOT
-            / "datasets/placeholder/cloud_detection/images/test/placeholder_clouds.png",
+            PROJECT_ROOT / "assets/samples/clouds.png",
         ),
         (
             "airport",
-            PROJECT_ROOT
-            / "datasets/placeholder/airport_detection/images/test/placeholder_airport.png",
+            PROJECT_ROOT / "assets/samples/airport.png",
         ),
         (
             "runway",
-            PROJECT_ROOT
-            / "datasets/placeholder/runway_segmentation/images/test/placeholder_runway.png",
+            PROJECT_ROOT / "assets/samples/runway.png",
         ),
         (
             "auto",
-            PROJECT_ROOT
-            / "datasets/placeholder/cloud_detection/images/test/placeholder_clouds.png",
+            PROJECT_ROOT / "assets/samples/clouds.png",
         ),
     ]
     output_dir = PROJECT_ROOT / "outputs" / "smoke"
