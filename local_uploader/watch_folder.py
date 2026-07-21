@@ -183,8 +183,12 @@ def run(config: UploaderConfig, *, once: bool = False, dry_run: bool = False) ->
                 elif client is not None:
                     remote = upload_file(client, config, path, digest)
                     print(f"上传成功：{path.name} -> {remote}")
-                uploaded.add(digest)
-                save_state(uploaded)
+                # A dry run must never mark a file as uploaded.  Otherwise a
+                # later real run silently skips the file because of the local
+                # de-duplication state.
+                if not dry_run:
+                    uploaded.add(digest)
+                    save_state(uploaded)
             except Exception as exc:
                 print(f"上传失败：{path.name}: {exc}", file=sys.stderr)
         if once:

@@ -5,8 +5,8 @@
 1. 在 PowerShell 中设置密钥：
 
    ```powershell
-   $env:SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
-   $env:SUPABASE_SERVICE_ROLE_KEY="YOUR_SERVICE_ROLE_KEY"
+   $env:SUPABASE_URL="......"
+   $env:SUPABASE_SERVICE_ROLE_KEY="......"
    ```
 
 2. 推荐直接运行交互式启动器，并按提示输入图片目录和设备 ID：

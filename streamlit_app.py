@@ -32,9 +32,9 @@ st.set_page_config(
 MODE_LABELS = {
     "auto": "Auto 智能路由",
     "general": "YOLOv8n 通用检测",
-    "cloud": "模型2：云与台风云系",
-    "airport": "模型3：机场周边环境",
-    "runway": "模型4：跑道状态分割",
+    "cloud": "云与台风云系检测",
+    "airport": "机场周边环境检测",
+    "runway": "跑道状态分检测割",
 }
 
 MODE_IMAGE_SIZES = {
@@ -85,6 +85,13 @@ def _init_state() -> None:
     st.session_state.setdefault("source_image", None)
     st.session_state.setdefault("source_name", None)
     st.session_state.setdefault("source_sha256", None)
+
+
+def _clear_output() -> None:
+    st.session_state.output = None
+    st.session_state.source_image = None
+    st.session_state.source_name = None
+    st.session_state.source_sha256 = None
 
 
 def _secret_group(name: str) -> dict[str, Any] | None:
@@ -161,6 +168,25 @@ def _render_classification(output: InferenceOutput) -> None:
 
 
 def _render_report(output: InferenceOutput) -> None:
+    # 注入 CSS：强化 Label 标题感，缩小 Value
+    st.markdown("""
+        <style>
+        /* Label：16px 加粗，深色，作为明显的标题 */
+        div[data-testid="stMetricLabel"] > div {
+            font-size: 16px !important;
+            font-weight: 700 !important;
+            color: #0F172A !important;
+            margin-bottom: 2px !important;
+        }
+        /* Value：14px 常规，中灰色，作为次级内容 */
+        div[data-testid="stMetricValue"] > div {
+            font-size: 14px !important;
+            font-weight: 400 !important;
+            color: #475569 !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     report = output.report
     source_image = st.session_state.source_image
     st.subheader("识别结果")
@@ -185,7 +211,7 @@ def _render_report(output: InferenceOutput) -> None:
         st.write(report.summary or "暂无分析结论。")
         guidance = [*report.knowledge, *report.recommendations]
         if guidance:
-            st.markdown("**影响与处置建议**")
+            st.subheader("**影响与处置建议**")
             for item in guidance:
                 st.markdown(f"- {item}")
         for warning in report.warnings:
@@ -312,6 +338,7 @@ source_mode = st.segmented_control(
         "cloud": "云端收件箱",
     }.get,
     key="source_mode",
+    on_change=_clear_output,
 )
 
 if source_mode == "manual":
@@ -373,6 +400,32 @@ elif source_mode == "demo":
             except Exception as exc:
                 st.exception(exc)
 else:
+    with st.container(border=True):
+        st.subheader("本地监听器配置")
+        st.caption("网页无法直接读取你的电脑目录；请在本地运行监听器，它会把新图片上传到当前云端收件箱。")
+        with st.form("cloud_listener_setup", border=False):
+            watch_folder = st.text_input("待监听的本地文件夹", placeholder="例如：D:/MMSSTV/Received", key="listener_watch_folder")
+            listener_device = st.text_input("设备 ID", value="mmsstv-windows-01", key="listener_device_id")
+            listener_saved = st.form_submit_button("生成监听配置", icon=":material/settings:")
+        if listener_saved:
+            if not watch_folder.strip():
+                st.warning("请输入本地文件夹地址。", icon=":material/folder_off:")
+            elif not listener_device.strip():
+                st.warning("请输入设备 ID。", icon=":material/devices:")
+            else:
+                listener_config = (
+                    f'watch_folder = "{watch_folder.strip().replace(chr(92), "/")}"\n'
+                    f'device_id = "{listener_device.strip()}"\n'
+                    'bucket = "mmsstv-images"\n'
+                    'table = "image_queue"\n'
+                    'scan_interval_seconds = 5\n'
+                    'stable_wait_seconds = 2\n'
+                    'extensions = [".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"]\n'
+                )
+                st.success("配置已生成。下载后保存为 local_uploader/uploader.toml。", icon=":material/check_circle:")
+                st.download_button("下载 uploader.toml", data=listener_config, file_name="uploader.toml", mime="text/plain", icon=":material/download:")
+                st.info("在本地 PowerShell 中设置 SUPABASE_URL 和 SUPABASE_SERVICE_ROLE_KEY，然后运行 start_folder_sync.bat。密钥不要放进配置文件或上传到网页。", icon=":material/terminal:")
+
     supabase_config = _secret_group("supabase")
     if not supabase_config:
         st.info(
@@ -387,6 +440,12 @@ else:
             str(supabase_config.get("table", "image_queue")),
         )
         device_id = st.text_input("设备 ID（留空表示全部）", key="inbox_device")
+        auto_process = st.toggle(
+            "发现新图片后自动解析",
+            value=True,
+            key="cloud_auto_process",
+            help="每次刷新最多自动处理一张 pending 图片。",
+        )
 
         @st.fragment(run_every="10s")
         def queue_panel() -> None:
@@ -397,6 +456,23 @@ else:
                 return
             if not items:
                 st.info("当前没有待处理图片。", icon=":material/inbox:")
+                return
+            if auto_process:
+                selected = items[0]
+                try:
+                    with st.status(f"正在自动解析：{selected.original_name}", expanded=False):
+                        _process_queue_item(
+                            inbox,
+                            selected,
+                            mode_id=mode_id,
+                            confidence=confidence,
+                            iou=iou,
+                            image_size=image_size,
+                        )
+                    st.toast(f"已完成：{selected.original_name}", icon=":material/check_circle:")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"自动解析失败：{exc}", icon=":material/error:")
                 return
             selected_id = st.selectbox(
                 "待处理图片",
