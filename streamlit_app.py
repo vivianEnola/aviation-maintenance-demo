@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from zipfile import ZIP_DEFLATED, ZipFile
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -147,6 +148,23 @@ def _run_bytes(
 def _image_png_bytes(image: Any) -> bytes:
     buffer = BytesIO()
     image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _listener_package_bytes() -> bytes:
+    """Build a small download bundle for non-technical Windows users."""
+    files = {
+        "AviationVisionUploader/start_folder_sync.bat": PROJECT_ROOT / "start_folder_sync.bat",
+        "AviationVisionUploader/setup_windows.bat": PROJECT_ROOT / "setup_windows.bat",
+        "AviationVisionUploader/requirements.txt": PROJECT_ROOT / "requirements.txt",
+        "AviationVisionUploader/local_uploader/watch_folder.py": PROJECT_ROOT / "local_uploader/watch_folder.py",
+        "AviationVisionUploader/local_uploader/uploader.example.toml": PROJECT_ROOT / "local_uploader/uploader.example.toml",
+        "AviationVisionUploader/README.txt": PROJECT_ROOT / "local_uploader/README.md",
+    }
+    buffer = BytesIO()
+    with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
+        for name, path in files.items():
+            archive.writestr(name, path.read_bytes())
     return buffer.getvalue()
 
 
@@ -401,9 +419,27 @@ elif source_mode == "demo":
                 st.exception(exc)
 else:
     with st.container(border=True):
+        st.subheader("下载本地监听器")
+        st.caption("网页不需要填写本地文件夹或设备 ID。请下载并解压工具包，然后在本地启动窗口中完成设置。")
+        st.download_button(
+            "下载监听器工具包",
+            data=_listener_package_bytes(),
+            file_name="AviationVisionUploader.zip",
+            mime="application/zip",
+            icon=":material/download:",
+        )
+        st.info(
+            "使用步骤：1）下载 ZIP；2）解压到任意文件夹；3）双击 start_folder_sync.bat；"
+            "4）按窗口提示输入监听文件夹和设备 ID。SUPABASE_URL 对所有设备相同，上传密钥由管理员安全提供。",
+            icon=":material/steps:",
+        )
+        st.warning(
+            "监听器是独立的本地程序，切换或关闭网页不会停止它；需要停止时关闭监听器窗口。",
+            icon=":material/pause_circle:",
+        )
         st.subheader("本地监听器配置")
         st.caption("网页无法直接读取你的电脑目录；请在本地运行监听器，它会把新图片上传到当前云端收件箱。")
-        with st.form("cloud_listener_setup", border=False):
+        if False:
             watch_folder = st.text_input("待监听的本地文件夹", placeholder="例如：D:/MMSSTV/Received", key="listener_watch_folder")
             listener_device = st.text_input("设备 ID", value="mmsstv-windows-01", key="listener_device_id")
             listener_saved = st.form_submit_button("生成监听配置", icon=":material/settings:")
