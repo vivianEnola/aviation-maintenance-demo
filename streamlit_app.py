@@ -424,7 +424,22 @@ else:
                 )
                 st.success("配置已生成。下载后保存为 local_uploader/uploader.toml。", icon=":material/check_circle:")
                 st.download_button("下载 uploader.toml", data=listener_config, file_name="uploader.toml", mime="text/plain", icon=":material/download:")
-                st.info("在本地 PowerShell 中设置 SUPABASE_URL 和 SUPABASE_SERVICE_ROLE_KEY，然后运行 start_folder_sync.bat。密钥不要放进配置文件或上传到网页。", icon=":material/terminal:")
+                supabase_group = _secret_group("supabase") or {}
+                supabase_url = str(supabase_group.get("url", "https://YOUR_PROJECT.supabase.co"))
+                powershell_setup = (
+                    f'$env:SUPABASE_URL = "{supabase_url}"\n'
+                    '$env:SUPABASE_SERVICE_ROLE_KEY = "请粘贴管理员提供的上传密钥"\n'
+                    'Set-Location "下载后的项目目录"\n'
+                    '.\\start_folder_sync.bat\n'
+                )
+                st.info(
+                    "当前版本中，SUPABASE_URL 对所有设备相同；上传密钥也是项目级共享密钥。"
+                    "页面不会显示真实密钥，请由管理员通过安全渠道提供。不要把密钥发到聊天、配置下载文件或公开网页。",
+                    icon=":material/security:",
+                )
+                st.caption("在用户电脑 PowerShell 中复制并运行以下代码：")
+                st.code(powershell_setup, language="powershell")
+                st.caption("运行后按窗口提示选择监听目录和设备 ID；设备 ID 必须在不同电脑之间保持唯一。")
 
     supabase_config = _secret_group("supabase")
     if not supabase_config:
