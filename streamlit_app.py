@@ -439,6 +439,7 @@ else:
         )
         st.subheader("本地监听器配置")
         st.caption("网页无法直接读取你的电脑目录；请在本地运行监听器，它会把新图片上传到当前云端收件箱。")
+        listener_saved = False
         if False:
             watch_folder = st.text_input("待监听的本地文件夹", placeholder="例如：D:/MMSSTV/Received", key="listener_watch_folder")
             listener_device = st.text_input("设备 ID", value="mmsstv-windows-01", key="listener_device_id")
