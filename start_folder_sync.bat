@@ -15,15 +15,13 @@ if not exist "local_uploader\uploader.toml" (
 )
 
 if "%SUPABASE_URL%"=="" (
-    echo SUPABASE_URL is not set in this terminal.
-    pause
-    exit /b 1
+    set /p SUPABASE_URL=Enter the Supabase project URL: 
 )
 if "%SUPABASE_SERVICE_ROLE_KEY%"=="" (
-    echo SUPABASE_SERVICE_ROLE_KEY is not set in this terminal.
-    pause
-    exit /b 1
+    set /p SUPABASE_SERVICE_ROLE_KEY=Enter the Supabase uploader key: 
 )
+if "%SUPABASE_URL%"=="" echo Supabase project URL is required.& pause & exit /b 1
+if "%SUPABASE_SERVICE_ROLE_KEY%"=="" echo Supabase uploader key is required.& pause & exit /b 1
 
 set /p WATCH_FOLDER=Enter the local image folder path:
 if "%WATCH_FOLDER%"=="" exit /b 1
