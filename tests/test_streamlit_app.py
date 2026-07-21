@@ -12,7 +12,7 @@ class StreamlitSmokeTests(unittest.TestCase):
             str(Path(__file__).resolve().parents[1] / "streamlit_app.py")
         ).run(timeout=60)
         self.assertEqual(list(app.exception), [])
-        self.assertEqual(app.title[0].value, "卫星图像航空辅助分析")
+        self.assertEqual(app.title[0].value, "航卫智眼👀")
         self.assertEqual(app.segmented_control[0].value, "manual")
 
 

@@ -24,7 +24,7 @@ from src.aviation_vision.inference import (
 
 
 st.set_page_config(
-    page_title="卫星图像航空辅助分析",
+    page_title="航卫智眼——卫星图片辅助航空信息判断",
     page_icon=":material/satellite_alt:",
     layout="wide",
 )
@@ -34,8 +34,8 @@ MODE_LABELS = {
     "auto": "Auto 智能路由",
     "general": "YOLOv8n 通用检测",
     "cloud": "云与台风云系检测",
-    "airport": "机场周边环境检测",
-    "runway": "跑道状态分检测割",
+    "airport": "机场与周边环境检测",
+    "runway": "跑道状态分割",
 }
 
 MODE_IMAGE_SIZES = {
@@ -174,8 +174,8 @@ def _render_classification(output: InferenceOutput) -> None:
         return
     st.subheader("Auto 分类结果")
     metrics = st.columns(3)
-    metrics[0].metric("Top-1 类别", classification.label)
-    metrics[1].metric("Top-1 置信度", f"{classification.confidence:.1%}")
+    metrics[0].metric("Top1 类别", classification.label)
+    metrics[1].metric("Top1 置信度", f"{classification.confidence:.1%}")
     margin = classification.margin
     metrics[2].metric("类别差值", "—" if margin is None else f"{margin:.1%}")
     if classification.second_label is not None:
@@ -189,14 +189,14 @@ def _render_report(output: InferenceOutput) -> None:
     # 注入 CSS：强化 Label 标题感，缩小 Value
     st.markdown("""
         <style>
-        /* Label：16px 加粗，深色，作为明显的标题 */
+        /* Label：18px 加粗，深色，作为明显的标题 */
         div[data-testid="stMetricLabel"] > div {
             font-size: 16px !important;
             font-weight: 700 !important;
             color: #0F172A !important;
             margin-bottom: 2px !important;
         }
-        /* Value：14px 常规，中灰色，作为次级内容 */
+        /* Value：18px 常规，中灰色，作为次级内容 */
         div[data-testid="stMetricValue"] > div {
             font-size: 14px !important;
             font-weight: 400 !important;
@@ -303,10 +303,10 @@ _init_state()
 thresholds = load_yaml("thresholds.yaml")
 defaults = thresholds["inference"]
 
-st.title("卫星图像航空辅助分析")
-st.caption("YOLO 多模型路由、云与机场环境检测、跑道状态分割")
+st.title("航卫智眼👀")
+st.caption("卫星图片辅助航空信息判断——天气判断、机场环境检测、跑道状态分割与 YOLO 多模型路由")
 st.info(
-    "系统用于图像智能筛查与辅助研判。涉及航班运行、机场开放、适航或气象处置时，"
+    "系统用于辅助卫星图像智能筛查与辅助航空信息判断。涉及航班运行、机场开放、适航或气象处置时，"
     "请由具备资质的人员结合现场检查和正式业务资料作出决定。",
     icon=":material/info:",
 )
@@ -327,12 +327,20 @@ with st.sidebar:
         step=0.01,
         key=f"confidence_{mode_id}",
     )
+    st.caption(
+        "决定模型对预测结果的最低把握度；"
+        "较低阈值可提高召回率（减少漏检），但也容易增加误报（虚警）。"
+    )
     iou = st.slider(
         "IoU 阈值",
         min_value=0.10,
         max_value=0.90,
         value=float(defaults["iou"]),
         step=0.05,
+    )
+    st.caption(
+        "控制重叠检测框去重的严格程度；"
+        "较小阈值能更彻底地消除重复框，但可能误删密集相邻的独立目标。"
     )
     image_size = st.select_slider(
         "模型输入尺寸",
@@ -419,8 +427,8 @@ elif source_mode == "demo":
                 st.exception(exc)
 else:
     with st.container(border=True):
-        st.subheader("下载本地监听器")
-        st.caption("网页不需要填写本地文件夹或设备 ID。请下载并解压工具包，然后在本地启动窗口中完成设置。")
+        st.subheader("本地监听器")
+        st.caption("如果需要自动读取本地文件夹中不断更新的图片，请下载并解压工具包，然后在本地启动窗口中完成设置。")
         st.download_button(
             "下载监听器工具包",
             data=_listener_package_bytes(),
@@ -429,8 +437,14 @@ else:
             icon=":material/download:",
         )
         st.info(
-            "使用步骤：1）下载 ZIP；2）解压到任意文件夹；3）双击 start_folder_sync.bat；"
-            "4）按窗口提示输入监听文件夹和设备 ID。SUPABASE_URL 对所有设备相同，上传密钥由管理员安全提供。",
+            "**使用步骤：**\n\n"
+            "1. 下载 ZIP 压缩包并解压到任意本地文件夹\n"
+            "2. 双击运行 `start_folder_sync.bat`\n"
+            "3. 按提示填写SUPABASE_URL和上传密钥\n"
+            "4. 按窗口提示输入监听文件夹和设备 ID（为你的设备任取一个名字，尽量独特）\n\n"
+            "💡 *注：*SUPABASE_URL和上传密钥请向管理员询问。\n"
+            "运行前请确保已配置python3.10或以上版本。"
+            "运行时可能会安装一些文件，退出app后将压缩包及解压文件删除即可。",
             icon=":material/steps:",
         )
         st.warning(
@@ -438,7 +452,7 @@ else:
             icon=":material/pause_circle:",
         )
         st.subheader("本地监听器配置")
-        st.caption("网页无法直接读取你的电脑目录；请在本地运行监听器，它会把新图片上传到当前云端收件箱。")
+        st.caption("由于网页无法直接读取你的电脑目录，请在本地运行监听器，它会把新图片上传到当前云端收件箱。")
         listener_saved = False
         if False:
             watch_folder = st.text_input("待监听的本地文件夹", placeholder="例如：D:/MMSSTV/Received", key="listener_watch_folder")
