@@ -2,9 +2,6 @@
 setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
-where py >nul 2>nul
-if errorlevel 1 goto no_python
-
 set "PYTHON_COMMAND="
 for %%V in (3.12 3.11 3.10 3.13) do (
     if not defined PYTHON_COMMAND (
