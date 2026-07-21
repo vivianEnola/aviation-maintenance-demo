@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 
 if not exist ".venv\Scripts\python.exe" (
-    call setup_windows.bat
+    call setup_uploader.bat
     if errorlevel 1 (
         pause
         exit /b 1

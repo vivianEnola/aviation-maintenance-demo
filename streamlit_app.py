@@ -155,8 +155,8 @@ def _listener_package_bytes() -> bytes:
     """Build a small download bundle for non-technical Windows users."""
     files = {
         "AviationVisionUploader/start_folder_sync.bat": PROJECT_ROOT / "start_folder_sync.bat",
-        "AviationVisionUploader/setup_windows.bat": PROJECT_ROOT / "setup_windows.bat",
-        "AviationVisionUploader/requirements.txt": PROJECT_ROOT / "requirements.txt",
+        "AviationVisionUploader/setup_uploader.bat": PROJECT_ROOT / "setup_uploader.bat",
+        "AviationVisionUploader/local_uploader/requirements-uploader.txt": PROJECT_ROOT / "local_uploader/requirements-uploader.txt",
         "AviationVisionUploader/local_uploader/watch_folder.py": PROJECT_ROOT / "local_uploader/watch_folder.py",
         "AviationVisionUploader/local_uploader/uploader.example.toml": PROJECT_ROOT / "local_uploader/uploader.example.toml",
         "AviationVisionUploader/README.txt": PROJECT_ROOT / "local_uploader/README.md",
