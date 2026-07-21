@@ -1,22 +1,27 @@
 @echo off
-setlocal
+setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
 where py >nul 2>nul
 if errorlevel 1 goto no_python
 
-set "PYTHON_VERSION="
-for %%V in (3.13 3.12 3.11 3.10) do (
-    if not defined PYTHON_VERSION (
+set "PYTHON_COMMAND="
+for %%V in (3.12 3.11 3.10 3.13) do (
+    if not defined PYTHON_COMMAND (
         py -%%V -c "import sys" >nul 2>nul
-        if not errorlevel 1 set "PYTHON_VERSION=%%V"
+        if not errorlevel 1 set "PYTHON_COMMAND=py -%%V"
     )
 )
-if not defined PYTHON_VERSION goto no_python
+
+if not defined PYTHON_COMMAND (
+    python -c "import sys; major, minor = sys.version_info[:2]; raise SystemExit(0 if major == 3 and 10 <= minor <= 13 else 1)" >nul 2>nul
+    if not errorlevel 1 set "PYTHON_COMMAND=python"
+)
+if not defined PYTHON_COMMAND goto no_python
 
 if not exist ".venv\Scripts\python.exe" (
     echo [1/2] Creating lightweight uploader environment...
-    py -%PYTHON_VERSION% -m venv .venv
+    %PYTHON_COMMAND% -m venv .venv
     if errorlevel 1 exit /b 1
 )
 
