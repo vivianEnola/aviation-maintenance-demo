@@ -47,11 +47,12 @@ MODE_IMAGE_SIZES = {
 }
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-DEMO_IMAGES = {
-    "云与涡旋分析样例": PROJECT_ROOT / "assets/samples/clouds.png",
-    "机场周边分析样例": PROJECT_ROOT / "assets/samples/airport.png",
-    "跑道状态分析样例": PROJECT_ROOT / "assets/samples/runway.png",
-    "其它场景分析样例": PROJECT_ROOT / "assets/samples/other.png",
+DEMO_SAMPLES = {
+    "云与涡旋分析样例": (PROJECT_ROOT / "assets/samples/clouds.png", "cloud"),
+    "机场周边分析样例": (PROJECT_ROOT / "assets/samples/airport.png", "airport"),
+    "跑道状态分析样例": (PROJECT_ROOT / "assets/samples/runway.png", "runway"),
+    "其它场景分析样例": (PROJECT_ROOT / "assets/samples/other.png", "auto"),
+    "YOLOv8n 通用检测样例": (PROJECT_ROOT / "assets/samples/general.png", "general"),
 }
 
 
@@ -400,8 +401,9 @@ if source_mode == "manual":
 elif source_mode == "demo":
     with st.container(border=True):
         st.subheader("内置分析样例")
-        demo_name = st.selectbox("选择样例", options=list(DEMO_IMAGES), key="demo_name")
-        demo_path = DEMO_IMAGES[demo_name]
+        demo_name = st.selectbox("选择样例", options=list(DEMO_SAMPLES), key="demo_name")
+        demo_path, demo_mode_id = DEMO_SAMPLES[demo_name]
+        st.caption(f"样例将使用：{MODE_LABELS[demo_mode_id]}")
         st.image(str(demo_path), width=360)
         if st.button(
             "分析样例",
@@ -415,10 +417,10 @@ elif source_mode == "demo":
                     _run_bytes(
                         demo_path.read_bytes(),
                         filename=demo_path.name,
-                        mode_id=mode_id,
+                        mode_id=demo_mode_id,
                         confidence=confidence,
                         iou=iou,
-                        image_size=image_size,
+                        image_size=MODE_IMAGE_SIZES[demo_mode_id],
                     )
                     status.update(label="分析完成", state="complete", expanded=False)
             except (ImageValidationError, ModelUnavailableError) as exc:
