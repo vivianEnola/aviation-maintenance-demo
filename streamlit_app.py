@@ -51,8 +51,14 @@ DEMO_SAMPLES = {
     "云与涡旋分析样例": (PROJECT_ROOT / "assets/samples/clouds.png", "cloud"),
     "机场周边分析样例": (PROJECT_ROOT / "assets/samples/airport.png", "airport"),
     "跑道状态分析样例": (PROJECT_ROOT / "assets/samples/runway.png", "runway"),
-    "其它场景分析样例": (PROJECT_ROOT / "assets/samples/other.png", "auto"),
+    "Auto 智能路由分析样例": (PROJECT_ROOT / "assets/samples/clouds.png", "auto"),
     "YOLOv8n 通用检测样例": (PROJECT_ROOT / "assets/samples/general.png", "general"),
+}
+AUTO_DEMO_IMAGES = {
+    "云场景（clouds.png）": PROJECT_ROOT / "assets/samples/clouds.png",
+    "机场场景（airport.png）": PROJECT_ROOT / "assets/samples/airport.png",
+    "跑道场景（runway.png）": PROJECT_ROOT / "assets/samples/runway.png",
+    "其它场景（other.png）": PROJECT_ROOT / "assets/samples/other.png",
 }
 
 
@@ -403,6 +409,13 @@ elif source_mode == "demo":
         st.subheader("内置分析样例")
         demo_name = st.selectbox("选择样例", options=list(DEMO_SAMPLES), key="demo_name")
         demo_path, demo_mode_id = DEMO_SAMPLES[demo_name]
+        if demo_mode_id == "auto":
+            auto_demo_name = st.selectbox(
+                "选择 Auto 样例图片",
+                options=list(AUTO_DEMO_IMAGES),
+                key="auto_demo_name",
+            )
+            demo_path = AUTO_DEMO_IMAGES[auto_demo_name]
         st.caption(f"样例将使用：{MODE_LABELS[demo_mode_id]}")
         st.image(str(demo_path), width=360)
         if st.button(
